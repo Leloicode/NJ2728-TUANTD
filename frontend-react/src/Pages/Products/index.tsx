@@ -1,8 +1,8 @@
-import { Button, Form, Input, InputNumber, message, Modal, Select, Space, Table } from 'antd';
+import { Button, Drawer, Form, Input, InputNumber, message, Modal, Pagination, Select, Space, Table } from 'antd';
 import axios from '../../libraries/axiosClient';
 import React, { useCallback } from 'react';
 
-import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { ClearOutlined, DeleteOutlined, EditOutlined, FilterOutlined, SearchOutlined } from '@ant-design/icons';
 
 import type { ColumnsType } from 'antd/es/table';
 import numeral from 'numeral';
@@ -10,44 +10,79 @@ import numeral from 'numeral';
 const apiName = '/products';
 
 export default function Categories() {
-  const [items, setItems] = React.useState<any[]>([]);
+  const [items, setItems] = React.useState<any[]>([]); // data trong table
   const [categories, setCategories] = React.useState<any[]>([]);
   const [suppliers, setSupplier] = React.useState<any[]>([]);
-
   const [refresh, setRefresh] = React.useState<number>(0);
   const [open, setOpen] = React.useState<boolean>(false);
+  const [openFilter, setOpenFilter] = React.useState<boolean>(false);
   const [updateId, setUpdateId] = React.useState<number>(0);
+  const [showTable, setShowTable] = React.useState<boolean>(false);
+  const [total, setTotal] = React.useState<number>(0);
+  const [skip, setSkip] = React.useState<number>(0);
+  const [nameSearch, setNameSearch] = React.useState<string>('');
+  const [categorySearch, setCategorySearch] = React.useState<string>('');
+  const [supplierSearch, setSuplierSearch] = React.useState<string>('');
 
+  const [dataSearch, setDataSearch] = React.useState<{}>({});
+
+  
   const [category, setCategory] = React.useState<any[]>();
-  const [sup, setSup] = React.useState<any[]>();
+  // const [sup, setSup] = React.useState<any[]>();
 
   const [createForm] = Form.useForm();
   const [updateForm] = Form.useForm();
-  const onSelectCategoryFilter = useCallback((e: any) => {
-    setCategory(e.target.value);
-  }, []);
+  const [handleSearch] = Form.useForm();
+  const showDrawer = () => {
+    setOpenFilter(true);
+  };
 
-  const callApi = useCallback((searchParams: any) => {
-    axios
-    .get(`${apiName}${`?${searchParams.toString()}`}`)
-    .then((response) => {
-      const { data } = response;
-      setItems(data);
-    })
-    .catch((err) => {
-      console.error(err);
+  const onClose = () => {
+    setOpenFilter(false);
+  };
+  // const onSelectCategoryFilter = useCallback((e: any) => {
+  //   setCategory(e.target.value);
+  // }, []);
+
+  // const callApi = useCallback((searchParams: any) => {
+  //   axios
+  //   .get(`${apiName}${`?${searchParams.toString()}`}`)
+  //   .then((response) => {
+  //     const { data } = response;
+  //     setItems(data);
+  //   })
+  //   .catch((err) => {
+  //     console.error(err);
+  //   });
+  // }, []);
+
+  const onClearSearch = () => {
+      setNameSearch('');
+      setSuplierSearch('');
+      setCategorySearch('');
+      setDataSearch({});
+  }
+  const onSearch = () => {
+    if (nameSearch === '' && categorySearch === '' && supplierSearch === '') {
+      return;
+    }
+    setDataSearch({
+      productName: nameSearch,
+      category: categorySearch,
+      supplier : supplierSearch
     });
-  }, []);
-
-  const onSearch = useCallback(() => {
-    let filters: { category: any} = {
-      category,
-    };
+    console.log(dataSearch);
     
-    const searchParams: URLSearchParams = new URLSearchParams(filters);
+    setTotal(items.length)
+    // setNameSearch(name);
+    // let filters: { category: any} = {
+    //   category,
+    // };
+    
+    // const searchParams: URLSearchParams = new URLSearchParams(filters);
 
-    callApi(searchParams);
-  } , [callApi, category]);
+    // callApi(searchParams);
+  } ;
 
   const columns: ColumnsType<any> = [
     {
@@ -61,11 +96,11 @@ export default function Categories() {
       },
     },
     {
-      title: 'Tên danh mục',
-      dataIndex: 'category.name',
-      key: 'category.name',
-      render: (text, record, index) => {
-        return <span>{record.category.name}</span>;
+      title: 'Danh mục',
+      dataIndex: 'category',
+      key: 'category',
+      render: (text, record) => {
+        return <strong>{record?.category?.name}</strong>;
       },
     },
     {
@@ -73,7 +108,7 @@ export default function Categories() {
       dataIndex: 'supplier.name',
       key: 'supplier.name',
       render: (text, record, index) => {
-        return <span>{record.supplier.name}</span>;
+        return <span>{record?.supplier?.name}</span>;
       },
     },
     {
@@ -88,7 +123,6 @@ export default function Categories() {
       title: 'Giá bán',
       dataIndex: 'price',
       key: 'price',
-      width: '1%',
       align: 'right',
       render: (text, record, index) => {
         return <span>{numeral(text).format('0,0')}</span>;
@@ -142,7 +176,6 @@ export default function Categories() {
               danger
               icon={<DeleteOutlined />}
               onClick={() => {
-                console.log(record.id);
                 axios.delete(apiName + '/' + record.id).then((response) => {
                   setRefresh((f) => f + 1);
                   message.success('Xóa danh mục thành công!', 1.5);
@@ -156,17 +189,35 @@ export default function Categories() {
   ];
 
   // Get products
+  // trang thứ 1 : 0 -> 9 => 
+  // trang thứ 2
+  // ,{
+  //   params: {
+  //     skip: 10, 
+  //     limit: 10,
+  //   },
+  // }
   React.useEffect(() => {
+    
     axios
-      .get(apiName)
+      .get(apiName,{
+          params: {
+            skip: skip, 
+            limit: 10,
+            ...dataSearch
+
+          },
+        })
       .then((response) => {
-        const { data } = response;
-        setItems(data);
+        const result = response.data;
+        
+        setItems(result.data);
+        setTotal(result.total);
       })
       .catch((err) => {
         console.error(err);
       });
-  }, [refresh]);
+  }, [refresh,showTable,skip,dataSearch]);
 
   // Get categories
   React.useEffect(() => {
@@ -195,18 +246,20 @@ export default function Categories() {
   }, []);
 
   const onFinish = (values: any) => {
-    console.log(values);
-
     axios
       .post(apiName, values)
       .then((response) => {
         setRefresh((f) => f + 1);
         createForm.resetFields();
         message.success('Thêm mới danh mục thành công!', 1.5);
+        setShowTable(true);
+        
       })
       .catch((err) => {});
   };
-
+  const handlePageChange = (page: number) => {
+      setSkip((page - 1) * 10);
+  };
   const onUpdateFinish = (values: any) => {
     axios
       .patch(apiName + '/' + updateId, values)
@@ -223,7 +276,10 @@ export default function Categories() {
     <div style={{ padding: 24 }}>
       <div style={{}}>
         {/* CREAT FORM */}
-        <Form
+        {
+          showTable === false ?
+          <>
+             <Form
           form={createForm}
           name='create-form'
           onFinish={onFinish}
@@ -321,11 +377,11 @@ export default function Categories() {
               Lưu thông tin
             </Button>
           </Form.Item>
-        </Form>
-      </div>
-      {/* TABLE */}
-
-      <div style={{ background: 'red'}}>
+            </Form>
+          </>
+          :
+          <>
+            {/* <div style={{ background: 'red'}}>
         <select id="cars" onChange={onSelectCategoryFilter}>
         {
           categories.map((item: { _id: string, name: string }) => {
@@ -336,8 +392,95 @@ export default function Categories() {
         </select>
 
         <button onClick={onSearch}>Search</button>
-      </div>
+      </div> */}
+      <Button type="dashed" onClick={showDrawer} style={{marginBottom: '5px'}} icon={<FilterOutlined />}>
+        Filter
+      </Button>
+      <Drawer title="Filter Product" placement="right"   width={500} onClose={onClose} open={openFilter}>
+        {/* search name product */}
+        <Form
+         form={handleSearch}
+         name='search-form'
+         onFinish={onFinish}
+         labelCol={{
+           span: 8,
+         }}
+         wrapperCol={{
+           span: 16,
+         }}
+         
+        >
+        <Form.Item
+            label='Tên sản phẩm'
+            name='name'
+            hasFeedback={nameSearch === '' ? false : true}
+            valuePropName={nameSearch}
+          >
+            <Input value={nameSearch} onChange={(e)=>{
+              setNameSearch(e.target.value)
+             }} />
+          </Form.Item>
+          <Form.Item
+            label='Danh mục sản phẩm'
+            name='categori'
+            hasFeedback={categorySearch === '' ? false : true}
+            valuePropName={categorySearch}
+          >
+          <Select
+               onChange={(value)=>{
+                setCategorySearch(value);
+              }}
+              value={categorySearch}
+              style={{ width: '100%' }}
+              options={categories.map((c) => {
+                return { value: c._id, label: c.name };
+              })}
+            />
+             </Form.Item>
+        <Form.Item
+            label='Nhà cung cấp'
+            name='supplier'
+            hasFeedback={supplierSearch === '' ? false : true}
+            valuePropName={supplierSearch}
+          >
+          <Select
+              style={{ width: '100%' }}
+              onChange={(value)=>{
+                setSuplierSearch(value);
+              }}
+              value={supplierSearch}
+              options={suppliers.map((c) => {
+                return { value: c._id, label: c.name };
+              })}
+            />
+             </Form.Item>
+       
+              <Form.Item
+              wrapperCol={{ offset: 8, span: 16 }}
+              >
+            <Button 
+            onClick={onClearSearch}
+            style={{marginRight: '5px'}}
+            >
+              Clear
+              <ClearOutlined /> 
+              </Button>
+            <Button onClick={onSearch} >
+              Search
+              <SearchOutlined /> 
+            </Button>
+        </Form.Item>
+        
+        
+        </Form>
+      </Drawer>
       <Table rowKey='id' dataSource={items} columns={columns} pagination={false} />
+      <Pagination
+        // current={currentPage}
+        // pageSize={pageSize}
+        total={total}
+        onChange={handlePageChange} // Gọi hàm xử lý khi người dùng thay đổi trang
+      />
 
       {/* EDIT FORM */}
 
@@ -442,6 +585,13 @@ export default function Categories() {
           </Form.Item>
         </Form>
       </Modal>
+          </>
+        }
+       
+      </div>
+      {/* TABLE */}
+
+      
     </div>
   );
 }
