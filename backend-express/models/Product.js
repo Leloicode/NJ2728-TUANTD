@@ -16,14 +16,15 @@ const productSchema = new Schema(
     discount: { type: Number, min: 0, max: 75, default: 0 },
     stock: { type: Number, min: 0, default: 0 },
     // Reference to Category
-     categoryId: { type: Schema.Types.ObjectId, ref: 'Category', required: true },
+    categoryId: { type: Schema.Types.ObjectId, ref: 'Category', required: true },
     // // Reference to Supplier
-     supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier', required: true },
+    supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier', required: true },
   },
   {
     versionKey: false,
   },
 );
+
 productSchema.virtual('total').get(function () {
   return (this.price * (100 - this.discount)) / 100;
 });
@@ -53,5 +54,5 @@ productSchema.plugin(mongooseLeanVirtuals);
 //   return this.firstName + ' ' + this.lastName;
 // });
 
-const Product = model('Product',productSchema);
+const Product = model('Product', productSchema);
 module.exports = Product;
