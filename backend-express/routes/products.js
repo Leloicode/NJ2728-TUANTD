@@ -74,8 +74,13 @@ router.get('/', validateSchema(getProductsSchema), async (req, res, next) => {
       .limit(limit)
       .lean({ virtuals: true });
 
-    const countAllProduct = await Product.count();
-    res.json({ total: countAllProduct, data: results });
+    const countResultProduct = await Product
+      .find(conditionFind)
+      .populate('category')
+      .populate('supplier')
+      .lean({ virtuals: true }).count();
+
+    res.json({ total: countResultProduct, data: results });
 
   } catch (error) {
     console.log('««««« error »»»»»', error);
